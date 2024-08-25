@@ -9,8 +9,8 @@ and is located in the 'results' folder.
 
 
 ## Usage:
-    - python script_name.py input_file.pdf
-    - python script_name.py path/to/input/files
+    python3 bin/main.py input_file.pdf
+    python3 bin/main.py path/to/input/files
 
 ## Arguments:
-    - input_file.pdf / input_folder : Path to the PDF files or a single pdf file from which images will be extracted.
+    input_file.pdf (or) path/to/input/files : Path to the PDF files or a single pdf file from which images will be extracted.
