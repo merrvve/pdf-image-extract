@@ -1,24 +1,37 @@
-"""Brief description of what the script does."""
+"""
+This script extracts and saves JPEG and PNG images embedded within PDF files.
+
+The script reads PDF files in binary format, searches for embedded JPEG and PNG images
+by identifying their unique byte signatures, and saves each detected image into a separate
+file in a designated output directory. The output directory is named after the input PDF file
+and is located in the 'results' folder. 
+
+Usage:
+    python script_name.py input_file.pdf
+    python script_name.py path/to/input/files
+
+Arguments:
+    input_file.pdf / input_folder : Path to the PDF files or a single pdf file from which images will be extracted.
+"""
 
 import argparse
 import os
 
 def open_pdf(filename):
     """ 
+    Opens a PDF file and reads its contents into a byte array.
+
     Args:
         filename (string) : pdf file path
 
     Returns:
         bytes_pdf (array): pdf file data in bytes array
-
-    Raises:
-        ValueError: if filename does't end with '.pdf'          
+        None: if the file extension is not 'pdf'
     """
-    if (filename[-4:]!=".pdf"):
-        raise ValueError("File extension must be '.pdf'")
+    if not filename.endswith(".pdf"):
+        return None
     
-    bytes_pdf = []
-    with open(filename,"rb") as pdffile:
+    with open(filename, "rb") as pdffile:
         bytes_pdf = bytearray(pdffile.read())
 
     return bytes_pdf
@@ -28,26 +41,11 @@ def find_jpeg_signatures(byte_array):
     """
     Finds the start and end indices of JPEG files in a byte array.
 
-    A JPEG file typically starts with the following byte sequence:
-    - 0xFF (first byte)
-    - 0xD8 (second byte)
-    - 0xFF (third byte)
-    - 0xE0 to 0xEF (fourth byte, a range representing JPEG markers)
-
-    The end of a JPEG file is marked by the following byte sequence:
-    - 0xFF (second-to-last byte)
-    - 0xD9 (last byte)
-
-    This function iterates over the provided byte array and identifies the indices
-    where these sequences occur, effectively marking the boundaries of each JPEG file.
-
     Args:
         byte_array (bytearray): A byte array representing the data to search through.
 
     Returns:
-        List[Tuple[int, int]]: A list of tuples, each containing two integers:
-                               - The starting index of the JPEG file
-                               - The ending index (inclusive) of the JPEG file
+        List[Tuple[int, int]]: A list of tuples containing start and end indices of JPEG files.
     """
     first_begin_signature_symbol = 0xff
     second_begin_signature_symbol = 0xd8
@@ -82,36 +80,11 @@ def find_png_signatures(byte_array):
     """
     Finds the start and end indices of PNG files in a byte array.
 
-    A PNG file always starts with the following byte sequence:
-    - 137 (0x89 in hexadecimal)
-    - 80 (0x50 in hexadecimal)
-    - 78 (0x4E in hexadecimal)
-    - 71 (0x47 in hexadecimal)
-    - 13 (0x0D in hexadecimal)
-    - 10 (0x0A in hexadecimal)
-    - 26 (0x1A in hexadecimal)
-    - 10 (0x0A in hexadecimal)
-
-    The end of a PNG file is marked by the following byte sequence:
-    - 73 (0x49 in hexadecimal)
-    - 69 (0x45 in hexadecimal)
-    - 78 (0x4E in hexadecimal)
-    - 68 (0x44 in hexadecimal)
-    - 174 (0xAE in hexadecimal)
-    - 66 (0x42 in hexadecimal)
-    - 96 (0x60 in hexadecimal)
-    - 130 (0x82 in hexadecimal)
-
-    This function iterates over the provided byte array and identifies the indices
-    where these sequences occur, effectively marking the boundaries of each PNG file.
-
     Args:
         byte_array (bytearray): A byte array representing the data to search through.
 
     Returns:
-        List[Tuple[int, int]]: A list of tuples, each containing two integers:
-                               - The starting index of the PNG file
-                               - The ending index (inclusive) of the PNG file
+        List[Tuple[int, int]]: A list of tuples containing start and end indices of PNG files.
     """
     png_signature = [137, 80, 78, 71, 13, 10, 26, 10]
     end_signature = [73, 69, 78, 68, 174, 66, 96, 130]
@@ -140,55 +113,42 @@ def save_image_from_bytes(byte_array, image_tuple, output_path):
     """
     Saves a portion of a byte array as an image file.
 
-    This function extracts the bytes corresponding to an image from the provided byte array,
-    based on the given start and end indices. It then saves this extracted byte sequence
-    as a JPEG image at the specified output path.
-
     Args:
         byte_array (bytearray): The entire byte array containing the image data.
         image_tuple (Tuple[int, int]): A tuple containing the start and end indices of the image.
         output_path (str): The file path where the image should be saved (including file name and extension).
-
-    Returns:
-        None
     """
     start_index, end_index = image_tuple
 
     # Extract the image bytes from the byte array using the start and end indices
     image_bytes = byte_array[start_index:end_index]
 
-    # Save the extracted bytes as a JPEG image
+    # Save the extracted bytes as an image
     with open(output_path, 'wb') as image_file:
         image_file.write(image_bytes)
 
     print(f"Image saved to {output_path}")
 
 
-def save_all_images(bytes_array, image_points, filename):
+def save_all_images(bytes_array, image_points, filename, extension):
     """
     Saves all images extracted from the byte array to a specific directory.
-
-    This function iterates over a list of tuples containing start and end indices for each image
-    in the byte array, extracts the corresponding bytes, and saves each image as a JPEG file.
 
     Args:
         bytes_array (bytearray): The byte array containing the image data.
         image_points (List[Tuple[int, int]]): A list of tuples where each tuple contains the start and end indices of an image.
         filename (str): The base filename used to create the directory and name the saved images.
-
-    Returns:
-        None
+        extension (str): The type of the image file (jpg or png).
     """
-    # Create the output directory based on the filename
-    output_dir = os.path.join("sample-results", filename[:-4] + "-pdf-images")
-    
-    # Ensure the output directory exists
+    # Create the output directory 
+    output_dir = os.path.join("results", filename[:-4] + "-pdf-images")
+     
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     # Save each image
     for i, (start_index, end_index) in enumerate(image_points):
-        image_filename = f"{filename[:-4]}-image-{i+1}.jpg"
+        image_filename = f"{filename[:-4]}-image-{i+1}.{extension}"
         output_path = os.path.join(output_dir, image_filename)
         
         # Extract the image bytes and save as a JPEG
@@ -199,20 +159,52 @@ def save_all_images(bytes_array, image_points, filename):
         print(f"Image saved to {output_path}")
 
 
+def process_file(filepath):
+    """ 
+    Processes a single PDF file to extract and save images.
+
+    Args:
+        filepath (str): Path to the PDF file.
+    """
+    pdf_bytes = open_pdf(filepath)
+    filename = os.path.basename(filepath)
+    if(pdf_bytes):
+        jpg_image_points = find_jpeg_signatures(pdf_bytes)
+        if jpg_image_points:
+            print("Starting to save jpg images from the file...")
+            save_all_images(pdf_bytes, jpg_image_points, filename, "jpg")
+        else:
+            print("No jpg signature found in the file: " + filepath)
+
+        png_image_points = find_png_signatures(pdf_bytes)
+        if png_image_points:
+            print("Starting to save png images from the file...")
+            save_all_images(pdf_bytes, png_image_points, filename, "png")
+        else:
+            print("No png signature found in the file. " + filepath)
+
 
 def main(args):
-    """ Main function description """
-    print('Input file:', args.infile)
-    pdf_bytes = open_pdf(args.infile)
-    image_points = find_jpeg_signatures(pdf_bytes)
-    save_all_images(pdf_bytes,image_points,args.infile)
-    #find_png_signatures(pdf_bytes)
-   
+    """ 
+    Main function to handle the input file or directory and process accordingly.
+
+    Args:
+        args: Command-line arguments.
+    """
+    if os.path.isfile(args.infile):
+        process_file(args.infile)
+    elif os.path.isdir(args.infile):
+        for filename in os.listdir(args.infile):
+            filepath = os.path.join(args.infile, filename)
+            if os.path.isfile(filepath):
+                process_file(filepath)
+    else:
+        print("The provided path is neither a file nor a directory.")
+
 
 if __name__ == '__main__':
-    USAGE = 'Brief description of what the script does.'
+    USAGE = 'Script to extract and save images (JPEG, PNG) from a PDF file or all PDFs in a directory.'
     parser = argparse.ArgumentParser(description=USAGE)
-    parser.add_argument('infile', type=str,
-                        help='Input file name')
+    parser.add_argument('infile', type=str, help='Input file or directory')
     args = parser.parse_args()
     main(args)
